@@ -19,7 +19,7 @@ export async function borrowBook(
     `SELECT id
      FROM BorrowHistory
      WHERE bookId = ?
-     AND returnDate IS NULL`,
+       AND returnDate IS NULL`,
     [bookId]
   );
 
@@ -65,12 +65,14 @@ export async function returnBook(
     `SELECT id, bookId
      FROM BorrowHistory
      WHERE id = ?
-     AND returnDate IS NULL`,
+       AND returnDate IS NULL`,
     [borrowId]
   );
 
   if (!borrow) {
-    throw new Error("Phiếu mượn không tồn tại hoặc sách đã được trả.");
+    throw new Error(
+      "Phiếu mượn không tồn tại hoặc sách đã được trả."
+    );
   }
 
   // Cập nhật ngày trả
@@ -82,11 +84,12 @@ export async function returnBook(
   );
 
   // Cập nhật trạng thái sách
+  // Sử dụng bookId lấy trực tiếp từ BorrowHistory
   await db.runAsync(
     `UPDATE Books
      SET status = 'available'
      WHERE id = ?`,
-    [bookId]
+    [borrow.bookId]
   );
 }
 
@@ -97,8 +100,7 @@ export async function getBorrowingBooks() {
   const db = getDatabase();
 
   return await db.getAllAsync(
-    `
-    SELECT
+    `SELECT
       BorrowHistory.id,
       BorrowHistory.bookId,
       BorrowHistory.borrower,
@@ -113,8 +115,7 @@ export async function getBorrowingBooks() {
     INNER JOIN Books
       ON Books.id = BorrowHistory.bookId
     WHERE BorrowHistory.returnDate IS NULL
-    ORDER BY BorrowHistory.id DESC
-    `
+    ORDER BY BorrowHistory.id DESC`
   );
 }
 
@@ -125,8 +126,7 @@ export async function getBorrowHistory() {
   const db = getDatabase();
 
   return await db.getAllAsync(
-    `
-    SELECT
+    `SELECT
       BorrowHistory.id,
       BorrowHistory.bookId,
       BorrowHistory.borrower,
@@ -140,8 +140,7 @@ export async function getBorrowHistory() {
     FROM BorrowHistory
     INNER JOIN Books
       ON Books.id = BorrowHistory.bookId
-    ORDER BY BorrowHistory.id DESC
-    `
+    ORDER BY BorrowHistory.id DESC`
   );
 }
 
@@ -156,8 +155,7 @@ export async function getOverdueBooks() {
     .split("T")[0];
 
   return await db.getAllAsync(
-    `
-    SELECT
+    `SELECT
       BorrowHistory.id,
       BorrowHistory.bookId,
       BorrowHistory.borrower,
@@ -173,8 +171,7 @@ export async function getOverdueBooks() {
       ON Books.id = BorrowHistory.bookId
     WHERE BorrowHistory.returnDate IS NULL
       AND BorrowHistory.dueDate < ?
-    ORDER BY BorrowHistory.dueDate ASC
-    `,
+    ORDER BY BorrowHistory.dueDate ASC`,
     [today]
   );
 }
