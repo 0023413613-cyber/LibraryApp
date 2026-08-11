@@ -8,9 +8,9 @@ import BookDetailScreen from "../screens/BookDetailScreen";
 import AddBookScreen from "../screens/AddBookScreen";
 import EditBookScreen from "../screens/EditBookScreen";
 import BorrowBookScreen from "../screens/BorrowBookScreen";
+import ReturnBookScreen from "../screens/ReturnBookScreen";
 
-const Stack =
-  createNativeStackNavigator<RootStackParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function StackNavigator() {
   return (
@@ -51,6 +51,14 @@ export default function StackNavigator() {
         component={EditBookScreen}
         options={{
           title: "Chỉnh sửa sách",
+        }}
+      />
+
+      <Stack.Screen
+        name="ReturnBook"
+        component={ReturnBookScreen}
+        options={{
+          title: "Trả sách",
         }}
       />
 
