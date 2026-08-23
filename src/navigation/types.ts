@@ -1,28 +1,25 @@
+import type { NavigatorScreenParams } from "@react-navigation/native";
+
 export type RootStackParamList = {
   BookList: undefined;
-
   BookDetail: {
     bookId: number;
   };
-
   AddBook: undefined;
-
   EditBook: {
     bookId: number;
   };
-
   BorrowBook: {
     bookId: number;
   };
-
-  ReturnBook: undefined;
+  ReturnBook: {
+    bookId: number;
+  };
 };
-
-  
 
 export type BottomTabParamList = {
   Home: undefined;
-  Books: undefined;
+  Books: NavigatorScreenParams<RootStackParamList>;
   Borrow: undefined;
   History: undefined;
 };

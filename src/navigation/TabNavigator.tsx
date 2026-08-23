@@ -8,6 +8,9 @@ import BorrowListScreen from "../screens/BorrowListScreen";
 import HistoryScreen from "../screens/HistoryScreen";
 
 import type { BottomTabParamList } from "./types";
+import {
+  getFocusedRouteNameFromRoute,
+} from "@react-navigation/native";
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
@@ -34,11 +37,33 @@ export default function TabNavigator() {
       <Tab.Screen
         name="Books"
         component={StackNavigator}
-        options={{
-          title: "Sách",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book" color={color} size={size} />
-          ),
+        options={({ route }) => {
+          const routeName =
+            getFocusedRouteNameFromRoute(route) ?? "BookList";
+
+          const hideTabBar = [
+            "AddBook",
+            "EditBook",
+            "BookDetail",
+            "BorrowBook",
+            "ReturnBook",
+          ].includes(routeName);
+
+          return {
+            title: "Sách",
+
+            tabBarStyle: hideTabBar
+              ? { display: "none" }
+              : undefined,
+
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons
+                name="book"
+                color={color}
+                size={size}
+              />
+            ),
+          };
         }}
       />
 

@@ -12,26 +12,76 @@ import { Book } from "../models/Book";
 interface Props {
   book: Book;
   onPress: (book: Book) => void;
+  onLongPress?: (book: Book) => void;
+
+  selectionMode?: boolean;
+  selected?: boolean;
+  onSelect?: (book: Book) => void;
 }
 
 function BookCard({
   book,
   onPress,
+  onLongPress,
+  selectionMode = false,
+  selected = false,
+  onSelect,
 }: Props) {
-  const isAvailable =
-    book.status === "available";
+  const isAvailable = book.status === "available";
+
+  const handlePress = () => {
+    if (selectionMode) {
+      onSelect?.(book);
+      return;
+    }
+
+    onPress(book);
+  };
+
+  const handleLongPress = () => {
+    if (!selectionMode) {
+      onLongPress?.(book);
+    }
+  };
 
   return (
     <TouchableOpacity
-      activeOpacity={0.9}
-      style={styles.container}
-      onPress={() => onPress(book)}
+      activeOpacity={0.88}
+      style={[
+        styles.container,
+        selected && styles.selectedContainer,
+      ]}
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      delayLongPress={450}
     >
+      {/* Checkbox */}
+      {selectionMode && (
+        <View
+          style={[
+            styles.checkbox,
+            selected && styles.checkboxSelected,
+          ]}
+        >
+          {selected && (
+            <Text style={styles.checkmark}>
+              ✓
+            </Text>
+          )}
+        </View>
+      )}
+
+      {/* Ảnh */}
       <Image
-        source={{ uri: book.image }}
+        source={
+          book.image
+            ? { uri: book.image }
+            : undefined
+        }
         style={styles.image}
       />
 
+      {/* Nội dung */}
       <View style={styles.content}>
         <Text
           style={styles.title}
@@ -49,7 +99,10 @@ function BookCard({
 
         <View style={styles.bottomRow}>
           <View style={styles.category}>
-            <Text style={styles.categoryText}>
+            <Text
+              style={styles.categoryText}
+              numberOfLines={1}
+            >
               {book.category}
             </Text>
           </View>
@@ -58,20 +111,30 @@ function BookCard({
             style={[
               styles.status,
               {
-                backgroundColor:
-                  isAvailable
-                    ? "#E8F5E9"
-                    : "#FFF3E0",
+                backgroundColor: isAvailable
+                  ? "#EAF8F0"
+                  : "#FFF4E5",
               },
             ]}
           >
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor: isAvailable
+                    ? "#16A34A"
+                    : "#F59E0B",
+                },
+              ]}
+            />
+
             <Text
               style={[
                 styles.statusText,
                 {
                   color: isAvailable
-                    ? "#2E7D32"
-                    : "#EF6C00",
+                    ? "#15803D"
+                    : "#D97706",
                 },
               ]}
             >
@@ -91,15 +154,21 @@ export default React.memo(BookCard);
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
+    alignItems: "center",
+
     backgroundColor: "#FFFFFF",
+
     borderRadius: 18,
 
     padding: 12,
 
-    marginBottom: 16,
+    marginBottom: 12,
+
+    borderWidth: 1,
+    borderColor: "#E8EAF0",
 
     shadowColor: "#000",
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
 
     shadowOffset: {
@@ -107,63 +176,128 @@ const styles = StyleSheet.create({
       height: 3,
     },
 
-    elevation: 4,
+    elevation: 2,
+  },
+
+  selectedContainer: {
+    borderColor: "#4F46E5",
+    borderWidth: 2,
+    backgroundColor: "#F8F7FF",
+  },
+
+  checkbox: {
+    width: 26,
+    height: 26,
+
+    borderRadius: 8,
+
+    borderWidth: 2,
+    borderColor: "#CBD5E1",
+
+    justifyContent: "center",
+    alignItems: "center",
+
+    marginRight: 10,
+  },
+
+  checkboxSelected: {
+    backgroundColor: "#4F46E5",
+    borderColor: "#4F46E5",
+  },
+
+  checkmark: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "700",
   },
 
   image: {
-    width: 78,
-    height: 110,
+    width: 76,
+    height: 108,
+
     borderRadius: 12,
 
-    backgroundColor: "#EEE",
+    backgroundColor: "#EEF0F5",
   },
 
   content: {
     flex: 1,
+
     marginLeft: 14,
+
+    minHeight: 108,
+
     justifyContent: "space-between",
   },
 
   title: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
-    color: "#222",
+
+    color: "#172033",
+
+    lineHeight: 23,
   },
 
   author: {
-    marginTop: 5,
-    color: "#777",
-    fontSize: 15,
+    marginTop: 4,
+
+    color: "#7A8496",
+
+    fontSize: 14,
   },
 
   bottomRow: {
     flexDirection: "row",
+
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 12,
+
+    marginTop: 10,
   },
 
   category: {
-    backgroundColor: "#EEF4FF",
-    borderRadius: 15,
-    paddingHorizontal: 12,
+    maxWidth: "48%",
+
+    backgroundColor: "#EEF2FF",
+
+    borderRadius: 8,
+
+    paddingHorizontal: 10,
     paddingVertical: 5,
   },
 
   categoryText: {
-    color: "#2962FF",
+    color: "#4F46E5",
+
     fontWeight: "600",
-    fontSize: 13,
+
+    fontSize: 12,
   },
 
   status: {
-    borderRadius: 15,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    flexDirection: "row",
+
+    alignItems: "center",
+
+    borderRadius: 8,
+
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
+
+  statusDot: {
+    width: 6,
+    height: 6,
+
+    borderRadius: 3,
+
+    marginRight: 5,
   },
 
   statusText: {
+    fontSize: 12,
+
     fontWeight: "700",
-    fontSize: 13,
   },
 });

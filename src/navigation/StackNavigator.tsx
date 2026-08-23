@@ -1,6 +1,9 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-
+import {
+  Text,
+  TouchableOpacity,
+} from "react-native";
 import type { RootStackParamList } from "./types";
 
 import BookListScreen from "../screens/BookListScreen";
@@ -18,8 +21,7 @@ export default function StackNavigator() {
       initialRouteName="BookList"
       screenOptions={{
         headerTitleAlign: "center",
-        headerTintColor: "#2196F3",
-        
+        headerTintColor: "#5146E5",
       }}
     >
       <Stack.Screen
@@ -41,16 +43,39 @@ export default function StackNavigator() {
       <Stack.Screen
         name="AddBook"
         component={AddBookScreen}
-        options={{
+        options={({ navigation }) => ({
           title: "Thêm sách",
-        }}
+          headerShown: true,
+          headerBackVisible: false,
+
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{
+                marginLeft: 12,
+                padding: 6,
+              }}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={{
+                  fontSize: 30,
+                  color: "#4F46E5",
+                  lineHeight: 30,
+                }}
+              >
+                ‹
+              </Text>
+            </TouchableOpacity>
+          ),
+        })}
       />
 
       <Stack.Screen
         name="EditBook"
         component={EditBookScreen}
         options={{
-          title: "Chỉnh sửa sách",
+          title: "Sửa sách",
         }}
       />
 

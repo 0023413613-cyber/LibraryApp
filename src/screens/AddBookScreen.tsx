@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+
 import {
   Alert,
   Image,
@@ -7,6 +8,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  View,
+  ActivityIndicator,
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
@@ -21,141 +24,384 @@ export default function AddBookScreen({
   const [category, setCategory] = useState("");
   const [image, setImage] = useState("");
 
-  // Chọn ảnh
+  const [errors, setErrors] = useState({
+    title: "",
+    author: "",
+    category: "",
+    image: "",
+  });
+
+  const [saving, setSaving] = useState(false);
+
+  // ===============================
+  // CHỌN ẢNH
+  // ===============================
   const handleChooseImage = useCallback(async () => {
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert(
-        "Thông báo",
-        "Bạn cần cấp quyền truy cập thư viện ảnh."
-      );
-      return;
-    }
-
-    const result =
-      await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [3, 4],
-        quality: 1,
-      });
-
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
-    }
-  }, []);
-
-  // Lưu sách
-  const handleSave = useCallback(async () => {
-    if (
-      title.trim() === "" ||
-      author.trim() === "" ||
-      category.trim() === ""
-    ) {
-      Alert.alert(
-        "Thông báo",
-        "Vui lòng nhập đầy đủ thông tin."
-      );
-      return;
-    }
-
-    if (image === "") {
-      Alert.alert(
-        "Thông báo",
-        "Vui lòng chọn ảnh bìa."
-      );
-      return;
-    }
-
     try {
-      await insertBook({
-        title,
-        author,
-        category,
-        image,
-        status: "available",
-      });
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-      Alert.alert(
-        "Thành công",
-        "Đã thêm sách thành công."
-      );
+      if (!permission.granted) {
+        Alert.alert(
+          "Thông báo",
+          "Bạn cần cấp quyền truy cập thư viện ảnh."
+        );
+        return;
+      }
 
-      navigation.goBack();
-    } catch (error: any) {
-      console.log(error);
+      const result =
+        await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          allowsEditing: true,
+          aspect: [3, 4],
+          quality: 0.7,
+          base64: true,
+        });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const asset = result.assets[0];
+
+      if (asset.base64) {
+        const mimeType =
+          asset.mimeType ?? "image/jpeg";
+
+        const imageData =
+          `data:${mimeType};base64,${asset.base64}`;
+
+        setImage(imageData);
+      } else {
+        setImage(asset.uri);
+      }
+
+      // Xóa lỗi ảnh ngay khi chọn ảnh
+      setErrors((prev) => ({
+        ...prev,
+        image: "",
+      }));
+    } catch (error) {
+      console.error("Lỗi chọn ảnh:", error);
 
       Alert.alert(
         "Lỗi",
-        error?.message ?? JSON.stringify(error)
+        "Không thể chọn ảnh."
       );
     }
-  }, [
-    title,
-    author,
-    category,
-    image,
-    navigation,
-  ]);
+  }, []);
+
+  // ===============================
+  // VALIDATE
+  // ===============================
+  const validateForm = () => {
+    const newErrors = {
+      title: "",
+      author: "",
+      category: "",
+      image: "",
+    };
+
+    let valid = true;
+
+    if (title.trim() === "") {
+      newErrors.title = "Vui lòng nhập tên sách.";
+      valid = false;
+    }
+
+    if (author.trim() === "") {
+      newErrors.author = "Vui lòng nhập tên tác giả.";
+      valid = false;
+    }
+
+    if (category.trim() === "") {
+      newErrors.category = "Vui lòng nhập thể loại.";
+      valid = false;
+    }
+
+    if (image === "") {
+      newErrors.image = "Vui lòng chọn ảnh bìa.";
+      valid = false;
+    }
+
+    setErrors(newErrors);
+
+    return valid;
+  };
+
+  // ===============================
+  // LƯU SÁCH
+  // ===============================
+  const handleSave = useCallback(async () => {
+  if (saving) {
+    return;
+  }
+
+  const valid = validateForm();
+
+  if (!valid) {
+    return;
+  }
+
+  try {
+    setSaving(true);
+
+    await insertBook({
+      title: title.trim(),
+      author: author.trim(),
+      category: category.trim(),
+      image,
+      status: "available",
+    });
+
+    // Web
+    if (typeof window !== "undefined") {
+      window.alert("Đã thêm sách thành công.");
+      navigation.goBack();
+      return;
+    }
+
+    // Android / iOS
+    Alert.alert(
+      "Thành công",
+      "Đã thêm sách thành công.",
+      [
+        {
+          text: "OK",
+          onPress: () => navigation.goBack(),
+        },
+      ]
+    );
+  } catch (error: any) {
+    console.error(
+      "LỖI INSERT BOOK:",
+      error
+    );
+
+    if (typeof window !== "undefined") {
+      window.alert(
+        error?.message ??
+        "Không thể thêm sách."
+      );
+    } else {
+      Alert.alert(
+        "Lỗi",
+        error?.message ??
+        "Không thể thêm sách."
+      );
+    }
+  } finally {
+    setSaving(false);
+  }
+}, [
+  title,
+  author,
+  category,
+  image,
+  navigation,
+  saving,
+]);
 
   return (
     <ScrollView
       style={styles.container}
+      contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.label}>Tên sách</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Nhập tên sách"
-        value={title}
-        onChangeText={setTitle}
-      />
-
-      <Text style={styles.label}>Tác giả</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Nhập tác giả"
-        value={author}
-        onChangeText={setAuthor}
-      />
-
-      <Text style={styles.label}>Thể loại</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Nhập thể loại"
-        value={category}
-        onChangeText={setCategory}
-      />
-
-      <Text style={styles.label}>Ảnh bìa</Text>
-
-      <TouchableOpacity
-        style={styles.imageButton}
-        onPress={handleChooseImage}
-      >
-        <Text style={styles.imageButtonText}>
-          📷 Chọn ảnh
+      
+      {/* HEADER */}
+      <View style={styles.header}>
+        <Text style={styles.eyebrow}>
+          THƯ VIỆN CÁ NHÂN
         </Text>
-      </TouchableOpacity>
 
-      {image !== "" && (
-        <Image
-          source={{ uri: image }}
-          style={styles.preview}
-        />
+        <Text style={styles.title}>
+          Thêm sách mới
+        </Text>
+
+        <Text style={styles.subtitle}>
+          Thêm một cuốn sách vào tủ sách
+          của bạn
+        </Text>
+      </View>
+
+      {/* TÊN SÁCH */}
+      <Text style={styles.label}>
+        Tên sách <Text style={styles.required}>*</Text>
+      </Text>
+
+      <TextInput
+        style={[
+          styles.input,
+          errors.title !== "" &&
+            styles.inputError,
+        ]}
+        placeholder="Nhập tên sách"
+        placeholderTextColor="#98A2B3"
+        value={title}
+        onChangeText={(text) => {
+          setTitle(text);
+
+          if (text.trim() !== "") {
+            setErrors((prev) => ({
+              ...prev,
+              title: "",
+            }));
+          }
+        }}
+      />
+
+      {errors.title !== "" && (
+        <Text style={styles.errorText}>
+          {errors.title}
+        </Text>
       )}
 
+      {/* TÁC GIẢ */}
+      <Text style={styles.label}>
+        Tác giả <Text style={styles.required}>*</Text>
+      </Text>
+
+      <TextInput
+        style={[
+          styles.input,
+          errors.author !== "" &&
+            styles.inputError,
+        ]}
+        placeholder="Nhập tên tác giả"
+        placeholderTextColor="#98A2B3"
+        value={author}
+        onChangeText={(text) => {
+          setAuthor(text);
+
+          if (text.trim() !== "") {
+            setErrors((prev) => ({
+              ...prev,
+              author: "",
+            }));
+          }
+        }}
+      />
+
+      {errors.author !== "" && (
+        <Text style={styles.errorText}>
+          {errors.author}
+        </Text>
+      )}
+
+      {/* THỂ LOẠI */}
+      <Text style={styles.label}>
+        Thể loại <Text style={styles.required}>*</Text>
+      </Text>
+
+      <TextInput
+        style={[
+          styles.input,
+          errors.category !== "" &&
+            styles.inputError,
+        ]}
+        placeholder="Ví dụ: Tiểu thuyết"
+        placeholderTextColor="#98A2B3"
+        value={category}
+        onChangeText={(text) => {
+          setCategory(text);
+
+          if (text.trim() !== "") {
+            setErrors((prev) => ({
+              ...prev,
+              category: "",
+            }));
+          }
+        }}
+      />
+
+      {errors.category !== "" && (
+        <Text style={styles.errorText}>
+          {errors.category}
+        </Text>
+      )}
+
+      {/* ẢNH */}
+      <Text style={styles.label}>
+        Ảnh bìa <Text style={styles.required}>*</Text>
+      </Text>
+
       <TouchableOpacity
-        style={styles.saveButton}
+        style={[
+          styles.imagePicker,
+          errors.image !== "" &&
+            styles.imagePickerError,
+        ]}
+        activeOpacity={0.85}
+        onPress={handleChooseImage}
+      >
+        {image ? (
+          <Image
+            source={{ uri: image }}
+            style={styles.preview}
+          />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <View style={styles.plusCircle}>
+              <Text style={styles.plus}>
+                +
+              </Text>
+            </View>
+
+            <Text style={styles.imageTitle}>
+              Chọn ảnh bìa
+            </Text>
+
+            <Text style={styles.imageSubtitle}>
+              Nhấn để chọn ảnh từ máy
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {errors.image !== "" && (
+        <Text style={styles.errorText}>
+          {errors.image}
+        </Text>
+      )}
+
+      {/* LƯU */}
+      <TouchableOpacity
+        style={[
+          styles.saveButton,
+          saving && styles.saveButtonDisabled,
+        ]}
+        activeOpacity={0.85}
+        disabled={saving}
         onPress={handleSave}
       >
-        <Text style={styles.saveButtonText}>
-          Lưu sách
+        {saving ? (
+          <View style={styles.savingContent}>
+            <ActivityIndicator
+              size="small"
+              color="#FFFFFF"
+            />
+
+            <Text style={styles.saveButtonText}>
+              Đang lưu...
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.saveButtonText}>
+            Lưu sách
+          </Text>
+        )}
+      </TouchableOpacity>
+
+      {/* HỦY */}
+      <TouchableOpacity
+        style={styles.cancelButton}
+        activeOpacity={0.8}
+        onPress={() => navigation.goBack()}
+      >
+        <Text style={styles.cancelButtonText}>
+          Hủy
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -163,60 +409,171 @@ export default function AddBookScreen({
 }
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
-    backgroundColor: "#F4F4F4",
-    padding: 20,
+    backgroundColor: "#F6F8FC",
   },
 
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginTop: 15,
+  content: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+
+  header: {
+    marginBottom: 24,
+  },
+
+  eyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+    color: "#5146E5",
     marginBottom: 8,
   },
 
+  title: {
+    fontSize: 30,
+    fontWeight: "700",
+    color: "#172033",
+    marginBottom: 6,
+  },
+
+  subtitle: {
+    fontSize: 15,
+    color: "#667085",
+  },
+
+  label: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#344054",
+    marginBottom: 8,
+    marginTop: 16,
+  },
+
+  required: {
+    color: "#D92D20",
+  },
+
   input: {
-    backgroundColor: "#FFF",
-    borderRadius: 10,
-    padding: 14,
+    height: 54,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E4E7EC",
+    borderRadius: 14,
+    paddingHorizontal: 16,
     fontSize: 16,
+    color: "#172033",
   },
 
-  imageButton: {
-    backgroundColor: "#4CAF50",
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
+  inputError: {
+    borderColor: "#D92D20",
+    backgroundColor: "#FFFBFA",
   },
 
-  imageButtonText: {
-    color: "#FFF",
-    textAlign: "center",
-    fontWeight: "bold",
-    fontSize: 16,
+  errorText: {
+    color: "#D92D20",
+    fontSize: 13,
+    marginTop: 6,
+    marginLeft: 2,
+    fontWeight: "500",
+  },
+
+  imagePicker: {
+    height: 280,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E4E7EC",
+    borderRadius: 18,
+    overflow: "hidden",
+    marginTop: 4,
+  },
+
+  imagePickerError: {
+    borderColor: "#D92D20",
+    backgroundColor: "#FFFBFA",
+  },
+
+  imagePlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  plusCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#EEF0FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  plus: {
+    color: "#5146E5",
+    fontSize: 32,
+    lineHeight: 36,
+  },
+
+  imageTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#344054",
+  },
+
+  imageSubtitle: {
+    fontSize: 14,
+    color: "#98A2B3",
+    marginTop: 5,
   },
 
   preview: {
-    width: 170,
-    height: 230,
-    alignSelf: "center",
-    marginTop: 20,
-    borderRadius: 10,
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
 
   saveButton: {
-    backgroundColor: "#2196F3",
-    padding: 16,
-    borderRadius: 10,
-    marginTop: 30,
-    marginBottom: 40,
+    height: 56,
+    borderRadius: 15,
+    backgroundColor: "#5146E5",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 28,
+  },
+
+  saveButtonDisabled: {
+    opacity: 0.7,
+  },
+
+  savingContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
 
   saveButtonText: {
-    color: "#FFF",
-    textAlign: "center",
-    fontWeight: "bold",
-    fontSize: 18,
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "700",
+  },
+
+  cancelButton: {
+    height: 52,
+    borderRadius: 15,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E4E7EC",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+  },
+
+  cancelButtonText: {
+    color: "#475467",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
