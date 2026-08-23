@@ -5,7 +5,19 @@ export type RootStackParamList = {
   BookDetail: {
     bookId: number;
   };
-  AddBook: undefined;
+  AddBook:
+  | {
+      scannedBook?: {
+        isbn: string;
+        title: string;
+        author: string;
+        category: string;
+        image: string;
+      };
+    }
+  | undefined;
+
+  ScanISBN: undefined;
   EditBook: {
     bookId: number;
   };
@@ -15,6 +27,7 @@ export type RootStackParamList = {
   ReturnBook: {
     bookId: number;
   };
+  
 };
 
 export type BottomTabParamList = {
@@ -22,4 +35,5 @@ export type BottomTabParamList = {
   Books: NavigatorScreenParams<RootStackParamList>;
   Borrow: undefined;
   History: undefined;
+  
 };

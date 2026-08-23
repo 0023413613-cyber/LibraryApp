@@ -114,6 +114,7 @@ export async function deleteBook(id: number) {
 }
 
 // Xóa nhiều sách cùng lúc
+// Xóa nhiều sách cùng lúc
 export async function deleteBooks(ids: number[]) {
   const db = getDatabase();
 
@@ -121,55 +122,107 @@ export async function deleteBooks(ids: number[]) {
     throw new Error("Database chưa được khởi tạo.");
   }
 
-  if (ids.length === 0) {
+  if (!ids || ids.length === 0) {
     return {
       deleted: 0,
       skipped: [],
     };
   }
 
-  const placeholders = ids
+  // Đảm bảo ID luôn là number
+  const normalizedIds = ids
+    .map((id) => Number(id))
+    .filter((id) => Number.isInteger(id));
+
+  if (normalizedIds.length === 0) {
+    return {
+      deleted: 0,
+      skipped: [],
+    };
+  }
+
+  console.log(
+    "DELETE - IDs nhận được:",
+    normalizedIds
+  );
+
+  const placeholders = normalizedIds
     .map(() => "?")
     .join(",");
 
+  // Lấy các sách được chọn
   const books = await db.getAllAsync<Book>(
     `
     SELECT *
     FROM Books
     WHERE id IN (${placeholders})
     `,
-    ids
+    normalizedIds
   );
 
-  // Chỉ xóa sách đang có sẵn
-  const availableBooks = books.filter(
-    (book) => book.status === "available"
+  console.log(
+    "DELETE - Sách tìm được:",
+    books
   );
 
-  const skippedBooks = books.filter(
-    (book) => book.status === "borrowed"
-  );
-
-  if (availableBooks.length > 0) {
-    const availableIds = availableBooks.map(
-      (book) => book.id
-    );
-
-    const availablePlaceholders = availableIds
-      .map(() => "?")
-      .join(",");
-
-    await db.runAsync(
-      `
-      DELETE FROM Books
-      WHERE id IN (${availablePlaceholders})
-      `,
-      availableIds
+  if (books.length === 0) {
+    throw new Error(
+      "Không tìm thấy sách cần xóa."
     );
   }
 
+  // Không cho xóa sách đang được mượn
+  const skippedBooks = books.filter(
+    (book) =>
+      book.status === "borrowed"
+  );
+
+  // Chỉ lấy sách có thể xóa
+  const availableBooks = books.filter(
+    (book) =>
+      book.status === "available"
+  );
+
+  if (availableBooks.length === 0) {
+    return {
+      deleted: 0,
+      skipped: skippedBooks.map(
+        (book) => book.title
+      ),
+    };
+  }
+
+  const availableIds =
+    availableBooks.map(
+      (book) => Number(book.id)
+    );
+
+  const availablePlaceholders =
+    availableIds
+      .map(() => "?")
+      .join(",");
+
+  console.log(
+    "DELETE - IDs sẽ xóa:",
+    availableIds
+  );
+
+  // Thực hiện DELETE
+  const result = await db.runAsync(
+    `
+    DELETE FROM Books
+    WHERE id IN (${availablePlaceholders})
+    `,
+    availableIds
+  );
+
+  console.log(
+    "DELETE - Số dòng đã xóa:",
+    result.changes
+  );
+
   return {
-    deleted: availableBooks.length,
+    deleted: result.changes,
     skipped: skippedBooks.map(
       (book) => book.title
     ),

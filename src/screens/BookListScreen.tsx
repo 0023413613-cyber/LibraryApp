@@ -12,6 +12,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Platform,
+  Modal,
 } from "react-native";
 
 import { useFocusEffect } from "@react-navigation/native";
@@ -30,15 +32,13 @@ export default function BookListScreen({
 }: any) {
   const [books, setBooks] = useState<Book[]>([]);
 
-  const [search, setSearch] =
-    useState("");
+  const [search, setSearch] = useState("");
 
-  const [selectionMode, setSelectionMode] =
-    useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
 
-  const [selectedIds, setSelectedIds] =
-    useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const loadBooks = useCallback(
     async () => {
       try {
@@ -160,9 +160,64 @@ export default function BookListScreen({
   };
 
   // =========================
-  // Xóa nhiều
-  // =========================
+// Xóa nhiều
+// =========================
 
+// Hàm thực hiện xóa thật sự
+const performDelete = async () => {
+  try {
+    console.log("Bắt đầu xóa:", selectedIds);
+
+    const result = await deleteBooks(selectedIds);
+
+    console.log("Kết quả xóa:", result);
+
+    await loadBooks();
+
+    exitSelectionMode();
+
+    // Có sách đang được mượn
+    if (result.skipped.length > 0) {
+      const message =
+        `Đã xóa ${result.deleted} sách.\n\n` +
+        `Không xóa được ${result.skipped.length} sách đang được mượn:\n` +
+        result.skipped.join(", ");
+
+      if (Platform.OS === "web") {
+        window.alert(message);
+      } else {
+        Alert.alert("Đã xử lý", message);
+      }
+
+      return;
+    }
+
+    // Xóa thành công
+    const successMessage =
+      `Đã xóa ${result.deleted} sách.`;
+
+    if (Platform.OS === "web") {
+      window.alert(successMessage);
+    } else {
+      Alert.alert("Thành công", successMessage);
+    }
+
+  } catch (error: any) {
+    console.log("Delete books error:", error);
+
+    const errorMessage =
+      error?.message ?? "Không thể xóa sách.";
+
+    if (Platform.OS === "web") {
+      window.alert(errorMessage);
+    } else {
+      Alert.alert("Lỗi", errorMessage);
+    }
+  }
+};
+
+
+// Hàm mở hộp xác nhận
 const handleDeleteSelected = async () => {
   if (selectedIds.length === 0) {
     Alert.alert(
@@ -175,93 +230,21 @@ const handleDeleteSelected = async () => {
   const message =
     `Bạn có chắc muốn xóa ${selectedIds.length} cuốn sách đã chọn?`;
 
-  // Xác nhận khi chạy trên Web
-  if (typeof window !== "undefined") {
-    const confirmed = window.confirm(message);
+  // Web
+  if (Platform.OS === "web") {
+    const confirmed =
+      window.confirm(message);
 
     if (!confirmed) {
       return;
     }
 
-    try {
-      const result = await deleteBooks(selectedIds);
-
-      await loadBooks();
-
-      exitSelectionMode();
-
-      if (result.skipped.length > 0) {
-        window.alert(
-          `Đã xóa ${result.deleted} sách.\n\n` +
-          `Không xóa được ${result.skipped.length} sách đang được mượn:\n` +
-          result.skipped.join(", ")
-        );
-      } else {
-        window.alert(
-          `Đã xóa ${result.deleted} sách.`
-        );
-      }
-    } catch (error: any) {
-      console.log("Delete books error:", error);
-
-      window.alert(
-        error?.message ??
-        "Không thể xóa sách."
-      );
-    }
-
+    await performDelete();
     return;
   }
 
-  // Xác nhận khi chạy Android/iOS
-  Alert.alert(
-    "Xóa sách",
-    message,
-    [
-      {
-        text: "Hủy",
-        style: "cancel",
-      },
-      {
-        text: "Xóa",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const result = await deleteBooks(selectedIds);
-
-            await loadBooks();
-
-            exitSelectionMode();
-
-            if (result.skipped.length > 0) {
-              Alert.alert(
-                "Đã xử lý",
-                `Đã xóa ${result.deleted} sách.\n\n` +
-                `Không xóa được ${result.skipped.length} sách đang được mượn:\n` +
-                result.skipped.join(", ")
-              );
-            } else {
-              Alert.alert(
-                "Thành công",
-                `Đã xóa ${result.deleted} sách.`
-              );
-            }
-          } catch (error: any) {
-            console.log(
-              "Delete books error:",
-              error
-            );
-
-            Alert.alert(
-              "Lỗi",
-              error?.message ??
-              "Không thể xóa sách."
-            );
-          }
-        },
-      },
-    ]
-  );
+  // Android / iOS
+  setShowDeleteModal(true);
 };
 
   return (
@@ -446,6 +429,65 @@ const handleDeleteSelected = async () => {
           </TouchableOpacity>
         </View>
       )}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setShowDeleteModal(false)
+        }
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModal}>
+            
+            <View style={styles.deleteIconCircle}>
+              <Text style={styles.deleteIconLarge}>
+                🗑
+              </Text>
+            </View>
+
+            <Text style={styles.modalTitle}>
+              Xóa sách?
+            </Text>
+
+            <Text style={styles.modalMessage}>
+              Bạn có chắc muốn xóa{" "}
+              <Text style={styles.boldText}>
+                {selectedIds.length} cuốn sách
+              </Text>{" "}
+              đã chọn?
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelModalButton}
+                activeOpacity={0.8}
+                onPress={() =>
+                  setShowDeleteModal(false)
+                }
+              >
+                <Text style={styles.cancelModalText}>
+                  Hủy
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmDeleteButton}
+                activeOpacity={0.8}
+                onPress={async () => {
+                  setShowDeleteModal(false);
+                  await performDelete();
+                }}
+              >
+                <Text style={styles.confirmDeleteText}>
+                  Xóa sách
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -840,5 +882,91 @@ const styles = StyleSheet.create({
     fontSize: 13,
 
     lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 28,
+  },
+
+  deleteModal: {
+    width: "100%",
+    maxWidth: 380,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+  },
+
+  deleteIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#FEF2F2",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  deleteIconLarge: {
+    fontSize: 28,
+  },
+
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#182033",
+    marginBottom: 10,
+  },
+
+  modalMessage: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#667085",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+
+  boldText: {
+    fontWeight: "700",
+    color: "#182033",
+  },
+
+  modalButtons: {
+    width: "100%",
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  cancelModalButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#F2F4F7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  cancelModalText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#475467",
+  },
+
+  confirmDeleteButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#EF4444",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  confirmDeleteText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 });

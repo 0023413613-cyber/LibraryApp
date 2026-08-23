@@ -1,15 +1,16 @@
 import React, { useCallback, useState } from "react";
 
 import {
+  ActivityIndicator,
   Alert,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
@@ -18,12 +19,27 @@ import { insertBook } from "../database/bookRepository";
 
 export default function AddBookScreen({
   navigation,
+  route,
 }: any) {
-  const [title, setTitle] = useState("");
-  const [author, setAuthor] = useState("");
-  const [category, setCategory] = useState("");
-  const [image, setImage] = useState("");
+  const scannedBook =
+  route?.params?.scannedBook;
 
+  const [image, setImage] = useState(
+    scannedBook?.image ?? ""
+  );
+
+  const [title, setTitle] = useState(
+    scannedBook?.title ?? ""
+  );
+
+  const [author, setAuthor] = useState(
+    scannedBook?.author ?? ""
+  );
+
+  const [category, setCategory] = useState(
+    scannedBook?.category ?? ""
+  );
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [errors, setErrors] = useState({
     title: "",
     author: "",
@@ -155,23 +171,9 @@ export default function AddBookScreen({
     });
 
     // Web
-    if (typeof window !== "undefined") {
-      window.alert("Đã thêm sách thành công.");
-      navigation.goBack();
-      return;
-    }
-
     // Android / iOS
-    Alert.alert(
-      "Thành công",
-      "Đã thêm sách thành công.",
-      [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ]
-    );
+    setShowSuccessModal(true);
+
   } catch (error: any) {
     console.error(
       "LỖI INSERT BOOK:",
@@ -366,6 +368,18 @@ export default function AddBookScreen({
         </Text>
       )}
 
+      <TouchableOpacity
+        style={styles.scanButton}
+        activeOpacity={0.85}
+        onPress={() =>
+          navigation.navigate("ScanISBN")
+        }
+      >
+        <Text style={styles.scanButtonText}>
+          📷 Quét mã ISBN
+        </Text>
+      </TouchableOpacity>
+
       {/* LƯU */}
       <TouchableOpacity
         style={[
@@ -394,6 +408,40 @@ export default function AddBookScreen({
         )}
       </TouchableOpacity>
 
+      <Modal
+        visible={showSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.successModal}>
+            <View style={styles.successIcon}>
+              <Text style={styles.successIconText}>✓</Text>
+            </View>
+
+            <Text style={styles.successTitle}>
+              Thêm sách thành công
+            </Text>
+
+            <Text style={styles.successMessage}>
+              Sách đã được thêm vào tủ sách của bạn.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.successButton}
+              onPress={() => {
+                setShowSuccessModal(false);
+                navigation.replace("BookList");
+            }}
+            >
+              <Text style={styles.successButtonText}>
+                Đã hiểu
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       {/* HỦY */}
       <TouchableOpacity
         style={styles.cancelButton}
@@ -575,5 +623,81 @@ const styles = StyleSheet.create({
     color: "#475467",
     fontSize: 16,
     fontWeight: "600",
+  },
+  scanButton: {
+    height: 54,
+    borderRadius: 15,
+    backgroundColor: "#EEF0FF",
+    borderWidth: 1,
+    borderColor: "#5146E5",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 16,
+  },
+
+  scanButtonText: {
+    color: "#5146E5",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+
+  successModal: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+  },
+
+  successIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#E8F8EF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  successIconText: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#12B76A",
+  },
+
+  successTitle: {
+    fontSize: 21,
+    fontWeight: "700",
+    color: "#172033",
+  },
+
+  successMessage: {
+    fontSize: 15,
+    color: "#667085",
+    textAlign: "center",
+    marginTop: 8,
+    marginBottom: 24,
+  },
+
+  successButton: {
+    width: "100%",
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: "#5146E5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  successButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

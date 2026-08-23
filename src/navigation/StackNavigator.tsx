@@ -12,6 +12,7 @@ import AddBookScreen from "../screens/AddBookScreen";
 import EditBookScreen from "../screens/EditBookScreen";
 import BorrowBookScreen from "../screens/BorrowBookScreen";
 import ReturnBookScreen from "../screens/ReturnBookScreen";
+import ScanISBNScreen from "../screens/ScanISBNScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -70,7 +71,13 @@ export default function StackNavigator() {
           ),
         })}
       />
-
+      <Stack.Screen
+        name="ScanISBN"
+        component={ScanISBNScreen}
+        options={{
+          title: "Quét ISBN",
+        }}
+      />
       <Stack.Screen
         name="EditBook"
         component={EditBookScreen}
