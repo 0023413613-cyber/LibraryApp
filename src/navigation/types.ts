@@ -14,7 +14,11 @@ export type RootStackParamList = {
   BorrowBook: {
     bookId: number;
   };
+
+  ReturnBook: undefined;
 };
+
+  
 
 export type BottomTabParamList = {
   Home: undefined;

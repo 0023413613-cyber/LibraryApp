@@ -9,7 +9,13 @@ export interface Borrow {
 
   borrowDate: string;
 
-  returnDate: string;
+  dueDate: string;
 
-  status: "borrowing" | "returned";
+  returnDate: string | null;
+
+  title?: string;
+
+  author?: string;
+
+  image?: string;
 }
