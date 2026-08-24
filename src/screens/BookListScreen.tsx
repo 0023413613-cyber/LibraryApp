@@ -8,6 +8,7 @@ import {
   View,
   Text,
   FlatList,
+  ActivityIndicator,
   TextInput,
   StyleSheet,
   ScrollView,
@@ -38,6 +39,9 @@ export default function BookListScreen({
 
   const [books, setBooks] = useState<Book[]>([]);
 
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   // Nội dung tìm kiếm
   const [search, setSearch] = useState("");
 
@@ -64,15 +68,18 @@ export default function BookListScreen({
   const loadBooks = useCallback(
     async () => {
       try {
-        const data =
-          await getAllBooks();
+        setLoading(true);
+        setError(null);
 
+        const data = await getAllBooks();
         setBooks(data);
       } catch (error) {
-        console.log(
-          "Load books error:",
-          error
+        console.log("Load books error:", error);
+        setError(
+          "Không thể tải danh sách sách. Vui lòng thử lại."
         );
+      } finally {
+        setLoading(false);
       }
     },
     []
@@ -441,6 +448,65 @@ export default function BookListScreen({
         true
       );
     };
+
+  // =====================================================
+  // RENDER TRẠNG THÁI
+  // =====================================================
+
+  if (loading) {
+    return (
+      <View style={styles.stateContainer}>
+        <View style={styles.stateIconBox}>
+          <ActivityIndicator size="large" color="#5146E5" />
+        </View>
+
+        <Text style={styles.stateTitle}>
+          Đang tải thư viện...
+        </Text>
+
+        <Text style={styles.stateText}>
+          Đang lấy danh sách sách của bạn.
+        </Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.stateContainer}>
+        <View style={styles.errorIconBox}>
+          <Ionicons
+            name="cloud-offline-outline"
+            size={42}
+            color="#EF4444"
+          />
+        </View>
+
+        <Text style={styles.stateTitle}>
+          Không thể tải dữ liệu
+        </Text>
+
+        <Text style={styles.stateText}>
+          {error}
+        </Text>
+
+        <TouchableOpacity
+          style={styles.retryButton}
+          activeOpacity={0.85}
+          onPress={loadBooks}
+        >
+          <Ionicons
+            name="refresh-outline"
+            size={18}
+            color="#FFFFFF"
+          />
+          <Text style={styles.retryButtonText}>
+            Thử lại
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // =====================================================
   // RENDER
@@ -1096,17 +1162,33 @@ export default function BookListScreen({
                 styles.emptyTitle
               }
             >
-              Không tìm thấy sách
+              {books.length === 0
+                ? "Tủ sách đang trống"
+                : "Không tìm thấy sách"}
             </Text>
 
-            <Text
-              style={
-                styles.emptyText
-              }
-            >
-              Thử thay đổi từ khóa
-              hoặc bộ lọc của bạn.
+            <Text style={styles.emptyText}>
+              {books.length === 0
+                ? "Bạn chưa có cuốn sách nào. Hãy thêm sách mới để bắt đầu."
+                : "Thử thay đổi từ khóa hoặc bộ lọc của bạn."}
             </Text>
+
+            {books.length === 0 && (
+              <TouchableOpacity
+                style={styles.emptyAddButton}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate("AddBook")}
+              >
+                <Ionicons
+                  name="add-outline"
+                  size={18}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.emptyAddButtonText}>
+                  Thêm sách
+                </Text>
+              </TouchableOpacity>
+            )}
 
           </View>
         }
@@ -1733,6 +1815,90 @@ const styles =
       color: "#8B94A5",
       fontSize: 13,
       lineHeight: 20,
+    },
+
+    // ===================================================
+    // STATE
+    // ===================================================
+
+    stateContainer: {
+      flex: 1,
+      backgroundColor: "#F7F8FC",
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 32,
+    },
+
+    stateIconBox: {
+      width: 78,
+      height: 78,
+      borderRadius: 24,
+      backgroundColor: "#EEF2FF",
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+
+    errorIconBox: {
+      width: 78,
+      height: 78,
+      borderRadius: 24,
+      backgroundColor: "#FEF2F2",
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+
+    stateTitle: {
+      fontSize: 19,
+      fontWeight: "800",
+      color: "#20283A",
+      textAlign: "center",
+    },
+
+    stateText: {
+      marginTop: 7,
+      fontSize: 14,
+      lineHeight: 21,
+      color: "#8992A4",
+      textAlign: "center",
+      maxWidth: 320,
+    },
+
+    retryButton: {
+      marginTop: 20,
+      height: 46,
+      paddingHorizontal: 22,
+      borderRadius: 13,
+      backgroundColor: "#5146E5",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+    },
+
+    retryButtonText: {
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: "700",
+    },
+
+    emptyAddButton: {
+      marginTop: 18,
+      height: 44,
+      paddingHorizontal: 18,
+      borderRadius: 12,
+      backgroundColor: "#5146E5",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+    },
+
+    emptyAddButtonText: {
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: "700",
     },
 
     // ===================================================

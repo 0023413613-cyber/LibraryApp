@@ -17,6 +17,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getBorrowHistory } from "../database/borrowRepository";
 
@@ -34,6 +35,7 @@ interface BorrowRecord {
 }
 
 export default function BorrowListScreen() {
+  const insets = useSafeAreaInsets();
   // =====================================================
   // STATE
   // =====================================================
@@ -193,9 +195,10 @@ export default function BorrowListScreen() {
   if (loading) {
     return (
       <View
-        style={
-          styles.stateContainer
-        }
+        style={[
+          styles.stateContainer,
+          { paddingTop: insets.top },
+        ]}
       >
         <View
           style={
@@ -234,9 +237,10 @@ export default function BorrowListScreen() {
   if (error) {
     return (
       <View
-        style={
-          styles.stateContainer
-        }
+        style={[
+          styles.stateContainer,
+          { paddingTop: insets.top },
+        ]}
       >
         <View
           style={[
@@ -496,7 +500,7 @@ export default function BorrowListScreen() {
 
   return (
     <View
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
     >
       <FlatList
         data={borrowList}

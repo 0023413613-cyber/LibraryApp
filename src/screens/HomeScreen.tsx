@@ -11,12 +11,14 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getAllBooks } from "../database/bookRepository";
 import { getDatabase } from "../database/database";
 import { Book } from "../models/Book";
 
 export default function HomeScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [books, setBooks] = useState<Book[]>([]);
   const [borrowedCount, setBorrowedCount] = useState(0);
   const [overdueCount, setOverdueCount] = useState(0);
@@ -306,7 +308,8 @@ export default function HomeScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
+
         <ActivityIndicator
           size="large"
           color="#5146E5"
@@ -324,7 +327,7 @@ export default function HomeScreen({ navigation }: any) {
   // =====================================================
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <FlatList
         data={recentBooks}
         keyExtractor={(item) =>

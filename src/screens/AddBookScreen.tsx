@@ -14,6 +14,7 @@ import {
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 
 import { insertBook } from "../database/bookRepository";
 
@@ -80,17 +81,28 @@ export default function AddBookScreen({
 
       const asset = result.assets[0];
 
-      if (asset.base64) {
-        const mimeType =
-          asset.mimeType ?? "image/jpeg";
+      // Tối ưu ảnh trước khi lưu:
+      // - Giới hạn chiều rộng còn 600px
+      // - Chuyển sang JPEG
+      // - Nén còn khoảng 75%
+      // - Không lưu base64 để tránh làm database phình to
+      const optimizedImage =
+        await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [
+            {
+              resize: {
+                width: 600,
+              },
+            },
+          ],
+          {
+            compress: 0.75,
+            format: ImageManipulator.SaveFormat.JPEG,
+          }
+        );
 
-        const imageData =
-          `data:${mimeType};base64,${asset.base64}`;
-
-        setImage(imageData);
-      } else {
-        setImage(asset.uri);
-      }
+      setImage(optimizedImage.uri);
 
       // Xóa lỗi ảnh ngay khi chọn ảnh
       setErrors((prev) => ({
