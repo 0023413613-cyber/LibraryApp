@@ -12,10 +12,10 @@ import {
   Image,
   RefreshControl,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-
 import { useFocusEffect } from "@react-navigation/native";
 
 import { getBorrowHistory } from "../database/borrowRepository";
@@ -30,129 +30,273 @@ interface BorrowRecord {
   returnDate: string | null;
   title: string;
   author?: string;
-  image?: string;
+  image: string;
 }
 
 export default function BorrowListScreen() {
-  const [borrowList, setBorrowList] =
-    useState<BorrowRecord[]>([]);
+  // =====================================================
+  // STATE
+  // =====================================================
+
+  const [borrowList, setBorrowList] = useState<
+    BorrowRecord[]
+  >([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState<string | null>(null);
 
   const [refreshing, setRefreshing] =
     useState(false);
 
-  // =========================
-  // LOAD DỮ LIỆU
-  // =========================
+  // =====================================================
+  // LOAD DATA
+  // =====================================================
 
-  const loadBorrowList =
-    useCallback(async () => {
+  const load = useCallback(
+    async (
+      showLoading = true
+    ) => {
       try {
+        if (showLoading) {
+          setLoading(true);
+        }
+
+        setError(null);
+
         const data =
           await getBorrowHistory();
 
-        const records =
-          data as BorrowRecord[];
-
-        const activeBooks =
-          records.filter(
+        const currentBorrowing =
+          (
+            data as BorrowRecord[]
+          ).filter(
             (item) =>
               !item.returnDate
           );
 
-        setBorrowList(activeBooks);
-      } catch (error) {
+        setBorrowList(
+          currentBorrowing
+        );
+      } catch (e) {
         console.log(
           "Lỗi tải sách đang mượn:",
-          error
+          e
         );
+
+        setError(
+          "Không thể tải danh sách sách đang mượn."
+        );
+      } finally {
+        if (showLoading) {
+          setLoading(false);
+        }
       }
-    }, []);
+    },
+    []
+  );
+
+  // =====================================================
+  // LOAD KHI MỞ TRANG
+  // =====================================================
 
   useFocusEffect(
     useCallback(() => {
-      loadBorrowList();
-    }, [loadBorrowList])
+      load(true);
+    }, [load])
   );
 
-  // =========================
+  // =====================================================
   // REFRESH
-  // =========================
+  // =====================================================
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
+  const handleRefresh =
+    async () => {
+      try {
+        setRefreshing(true);
+        await load(false);
+      } finally {
+        setRefreshing(false);
+      }
+    };
 
-    await loadBorrowList();
+  // =====================================================
+  // RETRY
+  // =====================================================
 
-    setRefreshing(false);
-  };
+  const handleRetry =
+    async () => {
+      await load(true);
+    };
 
-  // =========================
-  // FORMAT NGÀY
-  // =========================
+  // =====================================================
+  // THỐNG KÊ
+  // =====================================================
+
+  const overdueCount =
+    useMemo(
+      () =>
+        borrowList.filter(
+          (item) =>
+            item.dueDate <
+            new Date()
+              .toISOString()
+              .split("T")[0]
+        ).length,
+      [borrowList]
+    );
+
+  // =====================================================
+  // FORMAT DATE
+  // =====================================================
 
   const formatDate = (
     date?: string
   ) => {
     if (!date) {
-      return "--/--/----";
+      return "-";
     }
 
     const parts =
       date.split("-");
 
-    if (parts.length === 3) {
+    if (
+      parts.length === 3
+    ) {
       return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
 
     return date;
   };
 
-  // =========================
-  // KIỂM TRA QUÁ HẠN
-  // =========================
+  // =====================================================
+  // CHECK OVERDUE
+  // =====================================================
 
   const isOverdue = (
-    dueDate: string
+    date: string
   ) => {
-    if (!dueDate) {
-      return false;
-    }
-
     const today =
       new Date()
         .toISOString()
         .split("T")[0];
 
-    return dueDate < today;
+    return date < today;
   };
 
-  // =========================
-  // THỐNG KÊ
-  // =========================
+  // =====================================================
+  // LOADING
+  // =====================================================
 
-  const statistics = useMemo(() => {
-    const total =
-      borrowList.length;
+  if (loading) {
+    return (
+      <View
+        style={
+          styles.stateContainer
+        }
+      >
+        <View
+          style={
+            styles.stateIconBox
+          }
+        >
+          <ActivityIndicator
+            size="large"
+            color="#5146E5"
+          />
+        </View>
 
-    const overdue =
-      borrowList.filter(
-        (item) =>
-          isOverdue(item.dueDate)
-      ).length;
+        <Text
+          style={
+            styles.stateTitle
+          }
+        >
+          Đang tải
+        </Text>
 
-    const onTime =
-      total - overdue;
+        <Text
+          style={
+            styles.stateText
+          }
+        >
+          Đang lấy danh sách sách đang mượn...
+        </Text>
+      </View>
+    );
+  }
 
-    return {
-      total,
-      overdue,
-      onTime,
-    };
-  }, [borrowList]);
+  // =====================================================
+  // ERROR
+  // =====================================================
 
-  // =========================
-  // CARD SÁCH
-  // =========================
+  if (error) {
+    return (
+      <View
+        style={
+          styles.stateContainer
+        }
+      >
+        <View
+          style={[
+            styles.stateIconBox,
+            styles.errorIconBox,
+          ]}
+        >
+          <Ionicons
+            name="alert-circle-outline"
+            size={42}
+            color="#DC2626"
+          />
+        </View>
+
+        <Text
+          style={
+            styles.stateTitle
+          }
+        >
+          Không thể tải dữ liệu
+        </Text>
+
+        <Text
+          style={
+            styles.stateText
+          }
+        >
+          {error}
+        </Text>
+
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={
+            styles.retryButton
+          }
+          onPress={
+            handleRetry
+          }
+        >
+          <Ionicons
+            name="refresh-outline"
+            size={18}
+            color="#FFFFFF"
+          />
+
+          <Text
+            style={
+              styles.retryText
+            }
+          >
+            Thử lại
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // =====================================================
+  // RENDER ITEM
+  // =====================================================
 
   const renderItem = ({
     item,
@@ -160,113 +304,151 @@ export default function BorrowListScreen() {
     item: BorrowRecord;
   }) => {
     const overdue =
-      isOverdue(item.dueDate);
+      isOverdue(
+        item.dueDate
+      );
 
     return (
-      <View style={styles.card}>
-
-        {/* ================= ẢNH ================= */}
-
+      <View
+        style={styles.card}
+      >
         {item.image ? (
           <Image
             source={{
               uri: item.image,
             }}
-            style={styles.bookImage}
+            style={
+              styles.image
+            }
           />
         ) : (
           <View
             style={
-              styles.bookImagePlaceholder
+              styles.noImage
             }
           >
             <Ionicons
-              name="book-outline"
-              size={38}
+              name="library-outline"
+              size={36}
               color="#5146E5"
             />
           </View>
         )}
 
-        {/* ================= THÔNG TIN ================= */}
-
         <View
-          style={styles.cardContent}
+          style={styles.info}
         >
-
           <View
-            style={styles.titleRow}
+            style={
+              styles.titleRow
+            }
           >
             <Text
-              style={styles.bookTitle}
+              style={styles.title}
               numberOfLines={2}
             >
               {item.title}
             </Text>
+
+            <View
+              style={[
+                styles.badge,
+                overdue
+                  ? styles.overdueBadge
+                  : styles.borrowBadge,
+              ]}
+            >
+              <View
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor:
+                      overdue
+                        ? "#DC2626"
+                        : "#EA580C",
+                  },
+                ]}
+              />
+
+              <Text
+                style={[
+                  styles.badgeText,
+                  {
+                    color:
+                      overdue
+                        ? "#DC2626"
+                        : "#EA580C",
+                  },
+                ]}
+              >
+                {overdue
+                  ? "Quá hạn"
+                  : "Đang mượn"}
+              </Text>
+            </View>
           </View>
 
-          {/* TÁC GIẢ */}
-
-          {item.author && (
+          {!!item.author && (
             <Text
-              style={styles.author}
+              style={
+                styles.author
+              }
               numberOfLines={1}
             >
               {item.author}
             </Text>
           )}
 
-          {/* NGƯỜI MƯỢN */}
-
           <View
-            style={styles.infoRow}
+            style={
+              styles.infoRow
+            }
           >
             <Ionicons
               name="person-outline"
-              size={16}
+              size={15}
               color="#64748B"
             />
 
             <Text
-              style={styles.infoText}
+              style={styles.text}
             >
               {item.borrower}
             </Text>
           </View>
 
-          {/* SỐ ĐIỆN THOẠI */}
-
-          {item.phone && (
-            <View
-              style={styles.infoRow}
-            >
-              <Ionicons
-                name="call-outline"
-                size={16}
-                color="#64748B"
-              />
-
-              <Text
-                style={styles.infoText}
-              >
-                {item.phone}
-              </Text>
-            </View>
-          )}
-
-          {/* NGÀY MƯỢN */}
-
           <View
-            style={styles.infoRow}
+            style={
+              styles.infoRow
+            }
           >
             <Ionicons
-              name="calendar-outline"
-              size={16}
+              name="call-outline"
+              size={15}
               color="#64748B"
             />
 
             <Text
-              style={styles.infoText}
+              style={styles.text}
+            >
+              {item.phone ||
+                "Không có số điện thoại"}
+            </Text>
+          </View>
+
+          <View
+            style={
+              styles.infoRow
+            }
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={15}
+              color="#64748B"
+            />
+
+            <Text
+              style={styles.text}
             >
               Mượn:{" "}
               {formatDate(
@@ -275,14 +457,14 @@ export default function BorrowListScreen() {
             </Text>
           </View>
 
-          {/* HẠN TRẢ */}
-
           <View
-            style={styles.infoRow}
+            style={
+              styles.infoRow
+            }
           >
             <Ionicons
               name="time-outline"
-              size={16}
+              size={15}
               color={
                 overdue
                   ? "#DC2626"
@@ -292,10 +474,9 @@ export default function BorrowListScreen() {
 
             <Text
               style={[
-                styles.infoText,
-
+                styles.text,
                 overdue &&
-                  styles.overdueDate,
+                  styles.overdueText,
               ]}
             >
               Hạn trả:{" "}
@@ -304,239 +485,27 @@ export default function BorrowListScreen() {
               )}
             </Text>
           </View>
-
-          {/* TRẠNG THÁI */}
-
-          <View
-            style={[
-              styles.statusBadge,
-
-              overdue
-                ? styles.overdueBadge
-                : styles.onTimeBadge,
-            ]}
-          >
-            <Ionicons
-              name={
-                overdue
-                  ? "alert-circle-outline"
-                  : "checkmark-circle-outline"
-              }
-              size={15}
-              color={
-                overdue
-                  ? "#DC2626"
-                  : "#059669"
-              }
-            />
-
-            <Text
-              style={[
-                styles.statusText,
-
-                overdue
-                  ? styles.overdueText
-                  : styles.onTimeText,
-              ]}
-            >
-              {overdue
-                ? "Quá hạn"
-                : "Đang mượn"}
-            </Text>
-          </View>
-
         </View>
       </View>
     );
   };
 
+  // =====================================================
+  // SUCCESS / EMPTY
+  // =====================================================
+
   return (
     <View
       style={styles.container}
     >
-
-      {/* ================= HEADER ================= */}
-
-      <View
-        style={styles.header}
-      >
-
-        <View
-          style={styles.headerText}
-        >
-          <Text
-            style={styles.eyebrow}
-          >
-            THƯ VIỆN CÁ NHÂN
-          </Text>
-
-          <Text
-            style={styles.headerTitle}
-          >
-            Sách đang mượn
-          </Text>
-
-          <Text
-            style={styles.subtitle}
-          >
-            Theo dõi những sách bạn đang mượn
-          </Text>
-        </View>
-
-        <View
-          style={styles.headerIcon}
-        >
-          <Ionicons
-            name="library-outline"
-            size={31}
-            color="#5146E5"
-          />
-        </View>
-
-      </View>
-
-      {/* ================= THỐNG KÊ ================= */}
-
-      <View
-        style={styles.statistics}
-      >
-
-        {/* TỔNG */}
-
-        <View
-          style={styles.statCard}
-        >
-          <View
-            style={[
-              styles.statIcon,
-              styles.totalIcon,
-            ]}
-          >
-            <Ionicons
-              name="book-outline"
-              size={20}
-              color="#5146E5"
-            />
-          </View>
-
-          <Text
-            style={styles.statNumber}
-          >
-            {statistics.total}
-          </Text>
-
-          <Text
-            style={styles.statLabel}
-          >
-            Đang mượn
-          </Text>
-        </View>
-
-        {/* TRONG HẠN */}
-
-        <View
-          style={styles.statCard}
-        >
-          <View
-            style={[
-              styles.statIcon,
-              styles.onTimeIcon,
-            ]}
-          >
-            <Ionicons
-              name="checkmark-circle-outline"
-              size={20}
-              color="#059669"
-            />
-          </View>
-
-          <Text
-            style={styles.statNumber}
-          >
-            {statistics.onTime}
-          </Text>
-
-          <Text
-            style={styles.statLabel}
-          >
-            Trong hạn
-          </Text>
-        </View>
-
-        {/* QUÁ HẠN */}
-
-        <View
-          style={styles.statCard}
-        >
-          <View
-            style={[
-              styles.statIcon,
-              styles.overdueIcon,
-            ]}
-          >
-            <Ionicons
-              name="alert-circle-outline"
-              size={20}
-              color="#DC2626"
-            />
-          </View>
-
-          <Text
-            style={styles.statNumber}
-          >
-            {statistics.overdue}
-          </Text>
-
-          <Text
-            style={styles.statLabel}
-          >
-            Quá hạn
-          </Text>
-        </View>
-
-      </View>
-
-      {/* ================= TIÊU ĐỀ ================= */}
-
-      <View
-        style={styles.sectionHeader}
-      >
-        <View>
-          <Text
-            style={styles.sectionTitle}
-          >
-            Danh sách sách
-          </Text>
-
-          <Text
-            style={styles.sectionSubtitle}
-          >
-            {borrowList.length} sách đang được mượn
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          onPress={
-            handleRefresh
-          }
-          style={styles.refreshButton}
-        >
-          <Ionicons
-            name="refresh-outline"
-            size={20}
-            color="#5146E5"
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* ================= DANH SÁCH ================= */}
-
       <FlatList
         data={borrowList}
         keyExtractor={(item) =>
           item.id.toString()
         }
-        renderItem={renderItem}
+        renderItem={
+          renderItem
+        }
         showsVerticalScrollIndicator={
           false
         }
@@ -551,23 +520,221 @@ export default function BorrowListScreen() {
           />
         }
         contentContainerStyle={
-          borrowList.length === 0
-            ? styles.emptyContainer
-            : styles.list
+          borrowList.length
+            ? styles.list
+            : styles.emptyList
+        }
+        ListHeaderComponent={
+          <>
+            {/* HEADER */}
+
+            <View
+              style={styles.header}
+            >
+              <View
+                style={
+                  styles.headerText
+                }
+              >
+                <Text
+                  style={
+                    styles.eyebrow
+                  }
+                >
+                  THƯ VIỆN CÁ NHÂN
+                </Text>
+
+                <Text
+                  style={
+                    styles.headerTitle
+                  }
+                >
+                  Sách đang mượn
+                </Text>
+
+                <Text
+                  style={
+                    styles.subTitle
+                  }
+                >
+                  Theo dõi những cuốn sách bạn chưa trả
+                </Text>
+              </View>
+
+              <View
+                style={
+                  styles.headerIcon
+                }
+              >
+                <Ionicons
+                  name="library-outline"
+                  size={31}
+                  color="#5146E5"
+                />
+              </View>
+            </View>
+
+            {/* STATS */}
+
+            <View
+              style={styles.stats}
+            >
+              <View
+                style={styles.stat}
+              >
+                <View
+                  style={[
+                    styles.statIcon,
+                    {
+                      backgroundColor:
+                        "#EEF2FF",
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="book-outline"
+                    size={20}
+                    color="#5146E5"
+                  />
+                </View>
+
+                <Text
+                  style={
+                    styles.number
+                  }
+                >
+                  {borrowList.length}
+                </Text>
+
+                <Text
+                  style={
+                    styles.label
+                  }
+                >
+                  Đang mượn
+                </Text>
+              </View>
+
+              <View
+                style={styles.stat}
+              >
+                <View
+                  style={[
+                    styles.statIcon,
+                    {
+                      backgroundColor:
+                        "#FEF2F2",
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={20}
+                    color="#DC2626"
+                  />
+                </View>
+
+                <Text
+                  style={[
+                    styles.number,
+                    {
+                      color:
+                        "#DC2626",
+                    },
+                  ]}
+                >
+                  {overdueCount}
+                </Text>
+
+                <Text
+                  style={
+                    styles.label
+                  }
+                >
+                  Quá hạn
+                </Text>
+              </View>
+
+              <View
+                style={styles.stat}
+              >
+                <View
+                  style={[
+                    styles.statIcon,
+                    {
+                      backgroundColor:
+                        "#ECFDF5",
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={20}
+                    color="#059669"
+                  />
+                </View>
+
+                <Text
+                  style={[
+                    styles.number,
+                    {
+                      color:
+                        "#059669",
+                    },
+                  ]}
+                >
+                  {Math.max(
+                    0,
+                    borrowList.length -
+                      overdueCount
+                  )}
+                </Text>
+
+                <Text
+                  style={
+                    styles.label
+                  }
+                >
+                  Trong hạn
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={
+                styles.sectionRow
+              }
+            >
+              <Text
+                style={
+                  styles.sectionTitle
+                }
+              >
+                Danh sách mượn
+              </Text>
+
+              <Text
+                style={
+                  styles.result
+                }
+              >
+                {borrowList.length} kết quả
+              </Text>
+            </View>
+          </>
         }
         ListEmptyComponent={
           <View
             style={styles.empty}
           >
-
             <View
               style={
-                styles.emptyIconBox
+                styles.emptyIcon
               }
             >
               <Ionicons
                 name="book-outline"
-                size={43}
+                size={42}
                 color="#5146E5"
               />
             </View>
@@ -587,36 +754,107 @@ export default function BorrowListScreen() {
             >
               Hiện tại không có sách nào đang được mượn.
             </Text>
-
           </View>
         }
       />
-
     </View>
   );
 }
 
 // =====================================================
-// STYLE
+// STYLES
 // =====================================================
 
 const styles =
   StyleSheet.create({
-
     container: {
       flex: 1,
-      backgroundColor: "#F8F9FD",
+      backgroundColor:
+        "#F8FAFC",
       paddingHorizontal: 16,
+    },
+
+    list: {
+      paddingBottom: 30,
+    },
+
+    emptyList: {
+      flexGrow: 1,
+    },
+
+    // ================= STATE =================
+
+    stateContainer: {
+      flex: 1,
+      backgroundColor:
+        "#F8FAFC",
+      alignItems: "center",
+      justifyContent:
+        "center",
+      paddingHorizontal: 30,
+    },
+
+    stateIconBox: {
+      width: 88,
+      height: 88,
+      borderRadius: 28,
+      backgroundColor:
+        "#EEF2FF",
+      alignItems: "center",
+      justifyContent:
+        "center",
+      marginBottom: 18,
+    },
+
+    errorIconBox: {
+      backgroundColor:
+        "#FEF2F2",
+    },
+
+    stateTitle: {
+      fontSize: 20,
+      fontWeight: "800",
+      color: "#111827",
+      textAlign: "center",
+    },
+
+    stateText: {
+      fontSize: 13,
+      color: "#94A3B8",
+      textAlign: "center",
+      marginTop: 7,
+      lineHeight: 20,
+    },
+
+    retryButton: {
+      marginTop: 18,
+      height: 44,
+      paddingHorizontal: 18,
+      borderRadius: 13,
+      backgroundColor:
+        "#5146E5",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent:
+        "center",
+      gap: 7,
+    },
+
+    retryText: {
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: "800",
     },
 
     // ================= HEADER =================
 
     header: {
       flexDirection: "row",
-      justifyContent: "space-between",
+      justifyContent:
+        "space-between",
       alignItems: "center",
-      paddingTop: 20,
-      paddingBottom: 18,
+      paddingTop: 18,
+      paddingBottom: 16,
     },
 
     headerText: {
@@ -626,262 +864,244 @@ const styles =
     eyebrow: {
       fontSize: 11,
       fontWeight: "800",
-      letterSpacing: 1.4,
+      letterSpacing: 1.8,
       color: "#5146E5",
-      marginBottom: 5,
     },
 
     headerTitle: {
-      fontSize: 28,
+      fontSize: 29,
       fontWeight: "800",
-      color: "#172033",
+      color: "#111827",
+      marginTop: 3,
     },
 
-    subtitle: {
+    subTitle: {
       fontSize: 13,
-      color: "#8992A4",
+      color: "#64748B",
       marginTop: 5,
     },
 
     headerIcon: {
-      width: 62,
-      height: 62,
+      width: 60,
+      height: 60,
       borderRadius: 20,
-      backgroundColor: "#EEF2FF",
-      justifyContent: "center",
+      backgroundColor:
+        "#EEF2FF",
       alignItems: "center",
-      marginLeft: 10,
+      justifyContent:
+        "center",
     },
 
-    // ================= STATISTICS =================
+    // ================= STATS =================
 
-    statistics: {
+    stats: {
       flexDirection: "row",
       gap: 9,
       marginBottom: 20,
     },
 
-    statCard: {
+    stat: {
       flex: 1,
-      backgroundColor: "#FFFFFF",
+      backgroundColor:
+        "#FFFFFF",
       borderRadius: 17,
-      paddingVertical: 12,
+      padding: 11,
       alignItems: "center",
       borderWidth: 1,
-      borderColor: "#EEF0F4",
+      borderColor:
+        "#EEF2F7",
     },
 
     statIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 11,
-      justifyContent: "center",
+      width: 38,
+      height: 38,
+      borderRadius: 12,
       alignItems: "center",
+      justifyContent:
+        "center",
       marginBottom: 5,
     },
 
-    totalIcon: {
-      backgroundColor: "#EEF2FF",
-    },
-
-    onTimeIcon: {
-      backgroundColor: "#ECFDF5",
-    },
-
-    overdueIcon: {
-      backgroundColor: "#FEF2F2",
-    },
-
-    statNumber: {
+    number: {
       fontSize: 20,
       fontWeight: "800",
-      color: "#172033",
+      color: "#111827",
     },
 
-    statLabel: {
+    label: {
       fontSize: 10,
-      color: "#7B8495",
+      color: "#64748B",
       marginTop: 2,
-      fontWeight: "600",
-    },
-
-    // ================= SECTION =================
-
-    sectionHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 12,
-    },
-
-    sectionTitle: {
-      fontSize: 18,
-      fontWeight: "800",
-      color: "#20283A",
-    },
-
-    sectionSubtitle: {
-      fontSize: 11,
-      color: "#8992A4",
-      marginTop: 3,
-    },
-
-    refreshButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
-      backgroundColor: "#EEF2FF",
-      justifyContent: "center",
-      alignItems: "center",
     },
 
     // ================= LIST =================
 
-    list: {
-      paddingBottom: 25,
+    sectionRow: {
+      flexDirection: "row",
+      justifyContent:
+        "space-between",
+      alignItems: "center",
+      marginBottom: 11,
+    },
+
+    sectionTitle: {
+      fontSize: 19,
+      fontWeight: "800",
+      color: "#111827",
+    },
+
+    result: {
+      fontSize: 11,
+      color: "#94A3B8",
     },
 
     // ================= CARD =================
 
     card: {
-      flexDirection: "row",
-      backgroundColor: "#FFFFFF",
-      borderRadius: 19,
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 20,
       padding: 12,
-      marginBottom: 13,
+      marginBottom: 12,
+      flexDirection: "row",
       borderWidth: 1,
-      borderColor: "#EEF0F4",
+      borderColor:
+        "#EEF2F7",
       elevation: 2,
+      shadowColor: "#000",
+      shadowOpacity: 0.05,
+      shadowRadius: 7,
+      shadowOffset: {
+        width: 0,
+        height: 3,
+      },
     },
 
-    bookImage: {
+    image: {
       width: 82,
       height: 112,
       borderRadius: 14,
-      backgroundColor: "#F1F5F9",
+      backgroundColor:
+        "#EEF2F7",
     },
 
-    bookImagePlaceholder: {
+    noImage: {
       width: 82,
       height: 112,
       borderRadius: 14,
-      backgroundColor: "#EEF2FF",
-      justifyContent: "center",
+      backgroundColor:
+        "#EEF2FF",
       alignItems: "center",
+      justifyContent:
+        "center",
     },
 
-    cardContent: {
+    info: {
       flex: 1,
-      marginLeft: 13,
+      marginLeft: 12,
     },
 
     titleRow: {
       marginBottom: 3,
     },
 
-    bookTitle: {
+    title: {
       fontSize: 16,
       fontWeight: "800",
-      color: "#172033",
-      lineHeight: 21,
+      color: "#111827",
+      paddingRight: 2,
     },
 
     author: {
-      fontSize: 12,
-      color: "#8992A4",
+      fontSize: 11,
+      color: "#64748B",
       marginBottom: 7,
     },
-
-    // ================= INFO =================
 
     infoRow: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 5,
+      marginBottom: 4,
+      gap: 6,
     },
 
-    infoText: {
+    text: {
       flex: 1,
-      marginLeft: 7,
-      fontSize: 12,
+      fontSize: 11,
       color: "#64748B",
-    },
-
-    overdueDate: {
-      color: "#DC2626",
-      fontWeight: "700",
-    },
-
-    // ================= STATUS =================
-
-    statusBadge: {
-      alignSelf: "flex-start",
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 9,
-      paddingVertical: 5,
-      borderRadius: 10,
-      marginTop: 2,
-    },
-
-    onTimeBadge: {
-      backgroundColor: "#ECFDF5",
-    },
-
-    overdueBadge: {
-      backgroundColor: "#FEF2F2",
-    },
-
-    statusText: {
-      marginLeft: 5,
-      fontSize: 10,
-      fontWeight: "800",
-    },
-
-    onTimeText: {
-      color: "#059669",
     },
 
     overdueText: {
       color: "#DC2626",
+      fontWeight: "800",
+    },
+
+    badge: {
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 9,
+      marginTop: 5,
+    },
+
+    borrowBadge: {
+      backgroundColor:
+        "#FFF7ED",
+    },
+
+    overdueBadge: {
+      backgroundColor:
+        "#FEF2F2",
+    },
+
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      marginRight: 5,
+    },
+
+    badgeText: {
+      fontSize: 9,
+      fontWeight: "800",
     },
 
     // ================= EMPTY =================
 
-    emptyContainer: {
-      flexGrow: 1,
-    },
-
     empty: {
-      flex: 1,
-      justifyContent: "center",
       alignItems: "center",
-      paddingHorizontal: 30,
-      paddingBottom: 70,
+      justifyContent:
+        "center",
+      paddingTop: 65,
+      paddingHorizontal: 25,
     },
 
-    emptyIconBox: {
+    emptyIcon: {
       width: 88,
       height: 88,
       borderRadius: 28,
-      backgroundColor: "#EEF2FF",
-      justifyContent: "center",
+      backgroundColor:
+        "#EEF2FF",
       alignItems: "center",
+      justifyContent:
+        "center",
       marginBottom: 18,
     },
 
     emptyTitle: {
-      fontSize: 19,
+      fontSize: 20,
       fontWeight: "800",
-      color: "#20283A",
+      color: "#111827",
       textAlign: "center",
-      marginBottom: 7,
     },
 
     emptyText: {
       fontSize: 13,
-      color: "#8992A4",
+      color: "#94A3B8",
       textAlign: "center",
+      marginTop: 7,
       lineHeight: 20,
     },
   });
