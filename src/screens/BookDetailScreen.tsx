@@ -150,7 +150,9 @@ export default function BookDetailScreen({
           }
         };
 
+      // =========================
       // WEB
+      // =========================
       if (Platform.OS === "web") {
         const confirmed =
           window.confirm(
@@ -164,7 +166,9 @@ export default function BookDetailScreen({
         return;
       }
 
+      // =========================
       // ANDROID / IOS
+      // =========================
       Alert.alert(
         "Xóa sách",
         `Bạn có chắc muốn xóa sách "${book.title}" không?`,
@@ -205,6 +209,9 @@ export default function BookDetailScreen({
     );
   }
 
+  // =========================
+  // KHÔNG TÌM THẤY SÁCH
+  // =========================
   if (!book) {
     return (
       <View
@@ -219,15 +226,23 @@ export default function BookDetailScreen({
     );
   }
 
+  // =========================
+  // KIỂM TRA TRẠNG THÁI
+  // =========================
   const isAvailable =
     book.status === "available";
+
+  const isBorrowed =
+    book.status === "borrowed";
 
   return (
     <ScrollView
       style={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      {/* ẢNH BÌA */}
+      {/* =========================
+          ẢNH BÌA
+      ========================== */}
       <View style={styles.imageContainer}>
         <Image
           source={{
@@ -237,7 +252,9 @@ export default function BookDetailScreen({
         />
       </View>
 
-      {/* THÔNG TIN */}
+      {/* =========================
+          THÔNG TIN
+      ========================== */}
       <View style={styles.content}>
         <Text style={styles.eyebrow}>
           THÔNG TIN SÁCH
@@ -247,7 +264,9 @@ export default function BookDetailScreen({
           {book.title}
         </Text>
 
-        {/* TRẠNG THÁI */}
+        {/* =========================
+            TRẠNG THÁI
+        ========================== */}
         <View
           style={[
             styles.statusBadge,
@@ -287,7 +306,9 @@ export default function BookDetailScreen({
           </Text>
         </View>
 
-        {/* THÔNG TIN */}
+        {/* =========================
+            THÔNG TIN SÁCH
+        ========================== */}
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>
@@ -312,7 +333,9 @@ export default function BookDetailScreen({
           </View>
         </View>
 
-        {/* NÚT CHỈNH SỬA */}
+        {/* =========================
+            NÚT CHỈNH SỬA
+        ========================== */}
         <TouchableOpacity
           style={styles.editButton}
           activeOpacity={0.85}
@@ -330,7 +353,10 @@ export default function BookDetailScreen({
           </Text>
         </TouchableOpacity>
 
-        {/* NÚT CHO MƯỢN */}
+        {/* =========================
+            NÚT CHO MƯỢN
+            Chỉ hiển thị khi sách có sẵn
+        ========================== */}
         {isAvailable && (
           <TouchableOpacity
             style={styles.borrowButton}
@@ -350,7 +376,32 @@ export default function BookDetailScreen({
           </TouchableOpacity>
         )}
 
-        {/* NÚT XÓA */}
+        {/* =========================
+            NÚT TRẢ SÁCH
+            Chỉ hiển thị khi sách đang được mượn
+        ========================== */}
+        {isBorrowed && (
+          <TouchableOpacity
+            style={styles.returnButton}
+            activeOpacity={0.85}
+            onPress={() =>
+              navigation.navigate(
+                "ReturnBook",
+                {
+                  bookId: book.id,
+                }
+              )
+            }
+          >
+            <Text style={styles.buttonText}>
+              Trả sách
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* =========================
+            NÚT XÓA
+        ========================== */}
         <TouchableOpacity
           style={styles.deleteButton}
           activeOpacity={0.85}
@@ -367,7 +418,14 @@ export default function BookDetailScreen({
   );
 }
 
+// =====================================================
+// STYLE
+// =====================================================
+
 const styles = StyleSheet.create({
+  // =========================
+  // LOADING
+  // =========================
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -380,11 +438,17 @@ const styles = StyleSheet.create({
     color: "#7A8499",
   },
 
+  // =========================
+  // CONTAINER
+  // =========================
   container: {
     flex: 1,
     backgroundColor: "#F5F7FB",
   },
 
+  // =========================
+  // IMAGE
+  // =========================
   imageContainer: {
     height: 360,
     backgroundColor: "#E9ECF3",
@@ -396,6 +460,9 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
 
+  // =========================
+  // CONTENT
+  // =========================
   content: {
     padding: 20,
     paddingBottom: 50,
@@ -417,6 +484,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
+  // =========================
+  // STATUS
+  // =========================
   statusBadge: {
     alignSelf: "flex-start",
     flexDirection: "row",
@@ -439,6 +509,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
+  // =========================
+  // INFO CARD
+  // =========================
   infoCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
@@ -471,6 +544,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF0F4",
   },
 
+  // =========================
+  // EDIT BUTTON
+  // =========================
   editButton: {
     height: 54,
     borderRadius: 15,
@@ -480,6 +556,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  // =========================
+  // BORROW BUTTON
+  // =========================
   borrowButton: {
     height: 54,
     borderRadius: 15,
@@ -489,6 +568,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  // =========================
+  // RETURN BUTTON
+  // =========================
+  returnButton: {
+    height: 54,
+    borderRadius: 15,
+    backgroundColor: "#F97316",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+
+  // =========================
+  // DELETE BUTTON
+  // =========================
   deleteButton: {
     height: 54,
     borderRadius: 15,
@@ -499,6 +593,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  // =========================
+  // TEXT
+  // =========================
   buttonText: {
     color: "#FFFFFF",
     fontSize: 16,
