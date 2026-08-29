@@ -53,44 +53,48 @@ export async function returnBook(
 ) {
   const db = getDatabase();
 
+  if (!db) {
+    throw new Error("Database chưa được khởi tạo.");
+  }
+
   const today = new Date()
     .toISOString()
     .split("T")[0];
 
-  // Kiểm tra phiếu mượn có tồn tại và chưa trả
-  const borrow = await db.getFirstAsync<{
-    id: number;
-    bookId: number;
-  }>(
-    `SELECT id, bookId
-     FROM BorrowHistory
-     WHERE id = ?
-       AND returnDate IS NULL`,
-    [borrowId]
-  );
-
-  if (!borrow) {
-    throw new Error(
-      "Phiếu mượn không tồn tại hoặc sách đã được trả."
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    const borrow = await txn.getFirstAsync<{
+      id: number;
+      bookId: number;
+    }>(
+      `SELECT id, bookId
+       FROM BorrowHistory
+       WHERE id = ?
+         AND returnDate IS NULL`,
+      [borrowId]
     );
-  }
 
-  // Cập nhật ngày trả
-  await db.runAsync(
-    `UPDATE BorrowHistory
-     SET returnDate = ?
-     WHERE id = ?`,
-    [today, borrowId]
-  );
+    if (!borrow) {
+      throw new Error(
+        "Phiếu mượn không tồn tại hoặc sách đã được trả."
+      );
+    }
 
-  // Cập nhật trạng thái sách
-  // Sử dụng bookId lấy trực tiếp từ BorrowHistory
-  await db.runAsync(
-    `UPDATE Books
-     SET status = 'available'
-     WHERE id = ?`,
-    [borrow.bookId]
-  );
+    const targetBookId = Number(bookId ?? borrow.bookId);
+
+    await txn.runAsync(
+      `UPDATE BorrowHistory
+       SET returnDate = ?
+       WHERE id = ?`,
+      [today, borrowId]
+    );
+
+    await txn.runAsync(
+      `UPDATE Books
+       SET status = 'available'
+       WHERE id = ?`,
+      [targetBookId]
+    );
+  });
 }
 
 /**

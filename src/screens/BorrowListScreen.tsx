@@ -137,18 +137,65 @@ export default function BorrowListScreen() {
   // THỐNG KÊ
   // =====================================================
 
-  const overdueCount =
-    useMemo(
-      () =>
-        borrowList.filter(
-          (item) =>
-            item.dueDate <
-            new Date()
-              .toISOString()
-              .split("T")[0]
-        ).length,
-      [borrowList]
+  const toComparableDate = (
+    value?: string | null
+  ) => {
+    if (!value) {
+      return null;
+    }
+
+    const normalized = value.trim();
+
+    if (!normalized) {
+      return null;
+    }
+
+    const match = normalized.match(
+      /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/
     );
+
+    if (match) {
+      const [, year, month, day] = match;
+      return new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day)
+      );
+    }
+
+    const dmy = normalized.match(
+      /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/
+    );
+
+    if (dmy) {
+      const [, day, month, year] = dmy;
+      return new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day)
+      );
+    }
+
+    return new Date(normalized);
+  };
+
+  const overdueCount = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return borrowList.filter((item) => {
+      const dueDate = toComparableDate(item.dueDate);
+      if (!dueDate) {
+        return false;
+      }
+
+      dueDate.setHours(0, 0, 0, 0);
+      return dueDate < today;
+    }).length;
+  }, [borrowList]);
+
+  const hasOverdue =
+    overdueCount > 0;
 
   // =====================================================
   // FORMAT DATE
@@ -180,12 +227,17 @@ export default function BorrowListScreen() {
   const isOverdue = (
     date: string
   ) => {
-    const today =
-      new Date()
-        .toISOString()
-        .split("T")[0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    return date < today;
+    const dueDate = toComparableDate(date);
+
+    if (!dueDate) {
+      return false;
+    }
+
+    dueDate.setHours(0, 0, 0, 0);
+    return dueDate < today;
   };
 
   // =====================================================
@@ -489,6 +541,20 @@ export default function BorrowListScreen() {
               )}
             </Text>
           </View>
+
+          {overdue && (
+            <View style={styles.returnReminder}>
+              <Ionicons
+                name="warning-outline"
+                size={15}
+                color="#DC2626"
+              />
+
+              <Text style={styles.returnReminderText}>
+                Kêu trả sách
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     );
@@ -579,6 +645,20 @@ export default function BorrowListScreen() {
             </View>
 
             {/* STATS */}
+
+            {hasOverdue && (
+              <View style={styles.warningBanner}>
+                <Ionicons
+                  name="alert-circle"
+                  size={18}
+                  color="#DC2626"
+                />
+
+                <Text style={styles.warningText}>
+                  Kêu trả sách: {overdueCount} cuốn quá hạn
+                </Text>
+              </View>
+            )}
 
             <View
               style={styles.stats}
@@ -852,6 +932,27 @@ const styles =
 
     // ================= HEADER =================
 
+    warningBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#FEF2F2",
+      borderColor: "#FECACA",
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginTop: 14,
+      marginBottom: 10,
+      gap: 8,
+    },
+
+    warningText: {
+      color: "#B91C1C",
+      fontSize: 13,
+      fontWeight: "700",
+      flexShrink: 1,
+    },
+
     header: {
       flexDirection: "row",
       justifyContent:
@@ -1027,6 +1128,24 @@ const styles =
       alignItems: "center",
       marginBottom: 4,
       gap: 6,
+    },
+
+    returnReminder: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginTop: 8,
+      backgroundColor: "#FEF2F2",
+      borderRadius: 10,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      alignSelf: "flex-start",
+    },
+
+    returnReminderText: {
+      color: "#DC2626",
+      fontSize: 12,
+      fontWeight: "700",
     },
 
     text: {
