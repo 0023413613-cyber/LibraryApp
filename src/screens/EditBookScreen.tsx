@@ -13,6 +13,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
@@ -238,16 +239,21 @@ export default function EditBookScreen({
 
     await updateBook(updatedBook);
 
-    Alert.alert(
-      "Thành công",
-      "Cập nhật sách thành công.",
-      [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ]
-    );
+    if (Platform.OS === "web") {
+      window.alert("Cập nhật sách thành công.");
+      navigation.goBack();
+    } else {
+      Alert.alert(
+        "Thành công",
+        "Cập nhật sách thành công.",
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
+    }
   } catch (error) {
     console.error(
       "Lỗi cập nhật:",

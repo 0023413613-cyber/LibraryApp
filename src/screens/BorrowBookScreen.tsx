@@ -20,7 +20,7 @@ import { getBookById } from "../database/bookRepository";
 import { borrowBook } from "../database/borrowRepository";
 
 // =====================================================
-// HỖ TRỢ NGÀY YYYY-MM-DD
+// HỖ TRỢ NGÀY DD/MM/YYYY
 // =====================================================
 
 const getToday = (): string => {
@@ -47,10 +47,10 @@ const normalizeDate = (
     [year, month, day] =
       input.split("-").map(Number);
   }
-  // DD-MM-YYYY
-  else if (/^\d{2}-\d{2}-\d{4}$/.test(input)) {
+  // DD/MM/YYYY
+  else if (/^\d{2}\/\d{2}\/\d{4}$/.test(input)) {
     [day, month, year] =
-      input.split("-").map(Number);
+      input.split("/").map(Number);
   } else {
     return null;
   }
@@ -77,6 +77,7 @@ const normalizeDate = (
     "0"
   )}`;
 };
+
 
 // =====================================================
 // BORROW BOOK SCREEN
