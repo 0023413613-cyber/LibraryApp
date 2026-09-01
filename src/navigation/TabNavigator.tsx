@@ -37,6 +37,13 @@ export default function TabNavigator() {
       <Tab.Screen
         name="Books"
         component={StackNavigator}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            navigation.navigate("Books", {
+              screen: "BookList",
+            });
+          },
+        })}
         options={({ route }) => {
           const routeName =
             getFocusedRouteNameFromRoute(route) ?? "BookList";
